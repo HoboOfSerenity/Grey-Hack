@@ -1,7 +1,10 @@
-if params[0] == "-h" or params[0] == "--help" then
-    exit("<b>Usage: " + program_path.split("/")[-1] + " [ip_address] [port] Gives shell. [ip_address] dumps passwd file contents</b>")
+if params[0] == "-h" or params[0] == null then
+    exit("<b>Usage: " + program_path.split("/")[-1] + 
+    "[ip_address] [port] shell Gives shell. \n
+    [ip_address] [port] pwd dumps passwd file contents</b>")
 end if
 
+//check for metaxploit and crypto libraries
 metaxploit = include_lib("/lib/metaxploit.so")
 if not metaxploit then
     metaxploit = include_lib(current_path + "/metaxploit.so")
@@ -10,76 +13,98 @@ if not metaxploit then
     exit("Error: Can't find metaxploit library in the /lib path or the current folder")
 end if
 
+cryptools = include_lib("/lib/crypto.so")
+if not cryptools then
+	cryptools = include_lib(current_path + "/crypto.so")
+end if
+if not cryptools then exit("Error: Can't find crypto.so library in the /lib path or the current folder")
+
 address = params[0]
-if params.len == 1 then
+port = params[1].to_int
+modifier = params[2]
+if modifier == "pwd" then
     net_session = metaxploit.net_use(address)
     if not net_session then
         exit("Error: can't connect to net session")
     end if
 
     metaLib = net_session.dump_lib
-    result = metaLib.overflow("0x1B111C14", "revstrmdatap")
-    if not result then
-        exit("Program ended")
-    end if
+    //grab password exploits
+    pwdexploits = [
+        ["0x25648948", "adler32"],
+        ["0x1B111C14", "revstrmdatap"],
+        ["0x25648948", "adler32"],
+    ]
+    for exploit in pwdexploits
+        result = metaLib.overflow(exploit[0], exploit[1])
+        if not result then
+            print("Exploit failed with: " + exploit[0] + ", " + exploit[1])
+            continue // Move to the next exploit
+        end if
+        print("Result type: " + typeof(result))
+        print("File contents:\n" + result.get_content)
+        if not file then
+            print("Error: file /etc/passwd not found")
+            continue
+        end if
+    
+        if not file.has_permission("r") then
+            print("Error: can't read /etc/passwd. Permission denied.")
+            continue
+        end if
+    
+        if file.is_binary then
+            print("Error: invalid /etc/passwd file found.")
+            continue
+        end if
+    
+        listUsers = file.get_content.split("\n")
+        for line in listUsers
+            userPass = line.split(":")
+            print("Deciphering user " + userPass[0] + "...")
+            password = GetPassword(userPass)
+            if not password then
+                print("Nothing found...")
+            else
+                print("=> " + password)
+            end if
+        end for
+    end for
+end if
 
-    if typeof(result) != "file" then
-        exit("Error: expected file, obtained: " + result)
-    end if
-
-    if not result.is_folder then
-        exit("Error: expected folder, obtained file: " + result.path)
-    end if
-
-    if not result.has_permission("r") then
-        exit("Error: can't access to " + result.path + ". Permission denied.")
-    end if
-
-AccessPasswdFile = function(result)
-	print("Accesing to password file...")
-	files = result.get_files
-	for file in files
-		if file.name == "passwd" then
-			if not file.has_permission("r") then exit("failed. Can't access to file contents. Permission denied")
-			exit("success! loading content...\n" + file.get_content)
-		end if
-	end for
-	exit("Error: /etc/passwd file not found. Program aborted");
+//Password decipher
+GetPassword = function(userPass)
+    if userPass.len != 2 then exit("decipher: " + file.path + " wrong syntax")
+    password = cryptools.decipher(userPass[1])
+    return password
 end function
 
-if result.path == "/etc" then
-	AccessPasswdFile(result)
-
-else 
-	print("Attempting to reach /etc folder...")
-	while result.path != "/"
-		result = result.parent
-	end while
-	folders = result.get_folders
-	for folder in folders
-		if folder.path == "/etc" then
-			AccessPasswdFile(folder)
-		end if
-	end for
-end if
-end if
-
-if params.len == 2 then
-    port = params[1].to_int
+if modifier == "shell" then
     net_session = metaxploit.net_use(address, port)
     if not net_session then
         exit("Error: can't connect to net session")
     end if
 
     metaLib = net_session.dump_lib
-    result = metaLib.overflow("0x14DC7484", "slinesourcethi")
-    if not result then
-        exit("Program ended")
-    end if
+    exploits = [
+        ["0x14DC7484", "slinesourcethi"],
+        ["0x1B111C14", "revstrmdatap"],
+        ["0xABCDEF12", "anotherexploit"],
+    ]
 
-    if typeof(result) == "shell" then
-        result.start_terminal
-    else
-        print("Error: expected shell, obtained: " + result)
-    end if
+    for exploit in exploits
+        result = metaLib.overflow(exploit[0], exploit[1])
+        if result then
+            if typeof(result) == "shell" then
+                result.start_terminal
+                exit("Exploit succeeded with: " + exploit[0] + ", " + exploit[1])
+            else
+                print("Error: expected shell, obtained: " + result)
+            end if
+        else
+            print("Exploit failed with: " + exploit[0] + ", " + exploit[1])
+        end if
+    end for
+
+    exit("All exploits failed. Program ended.")
 end if
