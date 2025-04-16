@@ -1,3 +1,5 @@
+//first script attempt
+//ignore, it doesn't work since it requires spesific exploits and mem adresses, unique to each playthrough
 if params[0] == "-h" or params[0] == null then
     exit("<b>Usage: " + program_path.split("/")[-1] + 
     "[ip_address] [port] shell Gives shell. \n

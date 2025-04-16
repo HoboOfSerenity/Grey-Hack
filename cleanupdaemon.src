@@ -1,6 +1,8 @@
 //shell = get_shell
+clear_screen  //Clear the screen
+print("Running log corrupter, stop with ctrl+c") //Print message about program and how to stop it
 while true //create a loop that runs "while" the condition is true. Since true is true, we run forever until we get stopped
-    clear_screen  //Clear the screen
+    //clear_screen  //Clear the screen
     computer = get_shell.host_computer //Get the host computer running the shell
     computer.touch("/home/guest", "system.log") //Create system.log in /home/guest since all users have access to guest
     syslog = computer.File("/home/guest/system.log") //set syslog to the file we created
@@ -24,7 +26,7 @@ while true //create a loop that runs "while" the condition is true. Since true i
 		end if //only these two different cases, either root, or not
 	end for //end the for loop when we've gone through all users in the array
     result = syslog.move("/var", "system.log") //set result to file we created being moved to /var/system.log
-    if result == 1 then print("System.log corrupted") //if the result of moving it is 1 (success), print message
-    print("Running log corrupter, stop with ctrl+c") //Print message about program and how to stop it
+    //if result == 1 then print("System.log corrupted") //if the result of moving it is 1 (success), print message
+    //print("Running log corrupter, stop with ctrl+c") //Print message about program and how to stop it
     wait(1) //wait 1 second, then we jump back up to while true and run through the script again
 end while//end of the while true loop, everything outside the loop will not loop with it

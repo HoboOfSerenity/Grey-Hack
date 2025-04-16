@@ -11,11 +11,12 @@ version_output = "
 // Modifications by Salmon85        //
 // Modifications by HoboOfSerenity  //
 //////////////////////////////////////
-// Version: <color=#70FF70>1.1</color>                     //
+// Version: <color=#AF6D0B>1.1</color>                     //
 //                                  //
 // Changes                          //
 // Added option for local lib hack  //
 // Added nmap functionality         //
+// Added scanrouter functionality   //
 // See -h for instructions          //
 //////////////////////////////////////
 5n4k3 = https://github.com/psimonson
@@ -23,9 +24,20 @@ Salmon85 = https://github.com/salmon85
 "
 // Program usage output
 usage_output = "
-Usage: " + program_path.split("/")[-1] + " [address] [port] [(opt) lanip/password]
-[--setup-server] for configuring the cache server (must be ran on the server and requires root)
-[--serup-server-remote] for configuring the remote cache server (run on your machie, cache server needs ssh setting up and root access)"
+      ARF!         <color=#5F270C>,-. <color=#D4B98E>___ <color=#5F270C>,-.
+  ARF!             <color=#5F270C>\_/ <color=#D4B98E>_ _ <color=#5F270C>\_/
+    ARF!             <color=#5F270C>)<color=#AF6D0B>O <color=#D4B98E>_ <color=#AF6D0B>O<color=#5F270C>(
+  Let me help       <color=#5F270C>{  <color=#8B4E2F>(_)  <color=#5F270C>}
+and seek             <color=#5F270C>`- <color=#8B4E2F>^ <color=#5F270C>-'</color> 
+-------------------------------------------------------------------------------- 
+<color=#AF6D0B>nmap/scanrouter functionality</color> : "+ program_path.split("/")[-1] + " [ip address] <- This will do an nmap and if target is a <color=#0B8EAF>router</color>, list kernel_router.so version and firewall rules, if any
+--------------------------------------------------------------------------------
+<color=#AF6D0B>Local hack</color> : "+ program_path.split("/")[-1] + " [local] [(opt) lanip/password] <- This then asks you what library you want to target. <color=#B60606>!!!NOTE!!!</color> not all listed will be present on target, the list contains all libs that can have locally run exploits. 
+--------------------------------------------------------------------------------           
+<color=#AF6D0B>Remote hack</color> : " + program_path.split("/")[-1] + " [ip address] [port] [(opt) lanip/password] <-This will try and exploit the library found at target port with optional local lan ip or password input for bounce/password changes
+-------------------------------------------------------------------------------
+<color=#AF6D0B>[--setup-server]</color> for configuring the cache server (must be run on the server and requires root)
+<color=#AF6D0B>[--setup-server-remote]</color> for configuring the remote cache server (run locally in current shell, cache server needs ssh setting up and root access)"
 // ************************************************************
 // These are just temporary and are updated via the script
 // Do not touch unless you know what you're doing..
@@ -50,7 +62,7 @@ if not mx then
 end if
 
 if not mx then
-	exit("Cannot find metaxploit.so in /lib/ or current directory")
+	exit("<color=#B60606>Cannot find metaxploit.so in /lib/ or current directory</color>")
 end if
 
 if params[0] == "-v" or params[0] == "--version" then
@@ -72,7 +84,7 @@ TestRepo = function(repo)
 	wait(1)
 	
 	if write_access then
-		print("<color=#FF1010>WARNING:</color> account has write access, you should fix this and retry")
+		print("<color=#B60606>WARNING:</color> account has write access, you should fix this and retry")
 	end if
 	
 	if read_access then
@@ -129,7 +141,7 @@ compromised
 			globals.Cacheport = CacheConfig.server.port
 
 			if CacheConfig.admin then
-				print("<color=#FF0000>WARNING:</color> admin mode is active, this is meant only for populating the cache server")
+				print("<color=#B60606>WARNING:</color> admin mode is active, this is meant only for populating the cache server")
 
 				print("if you dont want to use this, disable it in the source and recompile")
 
@@ -213,7 +225,7 @@ CheckUser = function(anyObject)
 	for folder in rootFolder.get_folders
 		if folder.name == "root" then
 			if folder.has_permission("r") and folder.has_permission("w") and folder.has_permission("x") then
-				return "<color=#A50000><b>root</b></color>"
+				return "<color=#B60606><b>root</b></color>"
 			end if
 			break
 		end if
@@ -466,10 +478,14 @@ end if
 SetupCache()
 wait(1)
 if params[0] == "local" then
-    liblocal = user_input("Which library to attack? init, net, kernel >")
+    liblocal = user_input("Which library to attack?\n*init\n*net\n*kernel\n*aptclient\n*libtrafficnet\n*crypto\n*metaxploit >")
     liblocal = liblocal.replace("init", "/lib/init.so")
     liblocal = liblocal.replace("net", "/lib/net.so")
     liblocal = liblocal.replace("kernel", "/lib/kernel_module.so")
+    liblocal = liblocal.replace("aptclient","/lib/aptclient.so")
+    liblocal = liblocal.replace("libtrafficnet", "/lib/libtrafficnet.so")
+    liblocal = liblocal.replace("crypto", "/lib/crypto.so")
+    liblocal = liblocal.replace("metaxploit", "/lib/metaxploit.so")
     print("Trying to fetch " + liblocal)
 
     // check if we have the target library
@@ -678,9 +694,66 @@ if params[0] == "local" then
         
         end if
     end if
+else if params.len == 1 then //Nmap AND scanrouter functionality
+    if not is_valid_ip(params[0]) then exit("nmap: invalid ip address")
+    if not get_shell.host_computer.is_network_active then exit("nmap: No internet access.")
+    
+    ipAddress = params[0]
+    isLanIp = is_lan_ip( ipAddress )
+    
+    if isLanIp then
+       router = get_router;
+    else 
+       router = get_router( ipAddress )
+    end if
+    version = router.kernel_version
+    if version then
+        print("#########################################")
+        print("Target is router!\nkernel_router.so : v" + version)
+        print("#########################################")
+    end if
+    firewall_rules = router.firewall_rules
+    //if typeof(firewall_rules) == "string" then exit(firewall_rules)
+    if firewall_rules.len == 0 or firewall_rules == null then
+        print("No firewall rules found.")
+    else
+        print("Scanning firewall rules...")
+        info = "ACTION PORT SOURCE_IP DESTINATION_IP"
+        for rules in firewall_rules
+            info = info + "\n" + rules
+        end for
+        print(format_columns(info) + "\n")
+    end if
+    if router == null then exit("nmap: ip address not found")
+    ports = null
+    
+    if not isLanIp then
+       ports = router.used_ports
+    else
+       ports = router.device_ports(ipAddress)
+    end if
+    
+    if ports == null then exit("nmap: ip address not found")
+    if typeof(ports) == "string" then exit(ports)
+          
+    info = "PORT STATE SERVICE VERSION LAN"   
+    print("nmap scan started at:  " + current_date)
+    print("Disovered ports on" + params[0] + ":\n")
+    if(ports.len == 0) then exit("Scan finished. No open ports.")
+    
+    for port in ports
+       service_info = router.port_info(port)
+       lan_ips = port.get_lan_ip
+       port_status = "open"
+    
+       if(port.is_closed and not isLanIp) then
+          port_status = "closed"
+       end if
+       info = info + "\n" + port.port_number + " " + port_status + " " + service_info + " " + lan_ips
+    end for
+    print(format_columns(info) + "\n")
 else
     targetIP = params[0]
-
     if not is_valid_ip(targetIP) then
         targetIP = nslookup(targetIP)
     end if

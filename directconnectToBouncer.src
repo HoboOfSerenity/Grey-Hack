@@ -1,0 +1,6 @@
+shell = get_shell.connect_service("39.220.58.11", 1000, "root", "shit") 
+if shell then // change ip("39.220.58.11"), port(1000) and password ("shit") as needed
+    shell.start_terminal //But idea is to have a script that direct connects to a bounce point under your control, for log cleanup etc.
+else 
+	print("connection failed")
+end if
