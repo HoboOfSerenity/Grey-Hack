@@ -9,18 +9,15 @@ version_output = "
 //////////////////////////////////////
 // Simple autohack by 5n4k3         //
 // Modifications by Salmon85        //
+// Modifications by HoboOfSerenity  //
 //////////////////////////////////////
-// Version: <color=#70FF70>1.0</color>                     //
+// Version: <color=#70FF70>1.1</color>                     //
 //                                  //
 // Changes                          //
-// Added colour to the output so    //
-// that you can see <color=#A50000><b>root</b></color> easier.    //
-//                                  //
-// Added a cache for the exploits   //
-// so that you don't need to scan   //
-// the libs every time for exploits //
+// Added option for local lib hack  //
+// Added nmap functionality         //
+// See -h for instructions          //
 //////////////////////////////////////
-
 5n4k3 = https://github.com/psimonson
 Salmon85 = https://github.com/salmon85
 "
@@ -457,7 +454,7 @@ if params.len == 1 and params[0] == "--setup-server-remote" then
 	SetupCacheServer(true)
 end if
 
-if params.len < 2 or params.len > 3 or params[0] == "-h" or params[0] == "--help" then
+if params[0] == "-h" or params[0] == "--help" then
 	exit(usage_output)
 end if
 // The meat of the program starts here
@@ -468,225 +465,440 @@ end if
 
 SetupCache()
 wait(1)
-targetIP = params[0]
+if params[0] == "local" then
+    liblocal = user_input("Which library to attack? init, net, kernel >")
+    liblocal = liblocal.replace("init", "/lib/init.so")
+    liblocal = liblocal.replace("net", "/lib/net.so")
+    liblocal = liblocal.replace("kernel", "/lib/kernel_module.so")
+    print("Trying to fetch " + liblocal)
 
-if not is_valid_ip(targetIP) then
-	targetIP = nslookup(targetIP)
-end if
+    // check if we have the target library
 
-if not is_valid_ip(targetIP) then
-	exit("IP address invalid.")
-end if
-targetPort = params[1].to_int
+    file = get_shell.host_computer.File(liblocal)
 
-if typeof(targetPort) != "number" then
-	exit("Port needs to be a number.")
-end if
+    if file == null then
+    print((liblocal + " : " + "No such file or directory"))
+    else
+        injectArg = ""
 
-if targetPort < 0 or targetPort > 65535 then
-	exit("Port range is 0-65535.")
-end if
-injectArg = ""
+        if params.len > 2 then
+            injectArg = params[2]
+        end if
+        lib = mx.load(liblocal)
+        if not lib then
+            exit("Cannot dump library.")
+        end if
+        
+        // Scans for local exploits.
+        print()
+        exploits = ScanLib(lib, mx)
+        
+        if not exploits then
+            exit
+        end if
+        // Use exploits in auto hack.
+        objects = []
+        
+        for memory in exploits.memorys
+            for value in memory.value
+                result = lib.overflow(memory.key, value, injectArg)
+                
+                if typeof(result) != "shell" and typeof(result) != "computer" and typeof(result) != "file" then
+                    continue
+                end if
+                objects.push(result)
+            end for
+        
+        end for
+        
+        
+        if objects.len == 0 then
+            exit("No shells found.")
+        end if
+        option = 0
+        
+        while option <= 0 or option > objects.len
+            info = "ID TYPE USER"
+            i = 1
+        
+            for object in objects
+                
+                if typeof(object) == "shell" then
+                    info = info + "\n" + str(i) + "<color=#A50000><b> " + typeof(object) + " </b></color>" + CheckUser(object)
+                end if
+                
+                if typeof(object) != "shell" then
+                    info = info + "\n" + str(i) + "<color=#6699ff><b> " + typeof(object) + " </b></color>" + CheckUser(object)
+                end if
+                i = i + 1
+            end for
+        
+            print(format_columns(info) + "\n")
+        
+            option = user_input("Enter ID: ").to_int
+            
+            if typeof(option) != "number" then
+                exit("Option ID out of range.")
+            end if
+        end while
+        
+        
+        if option <= 0 or option > objects.len then
+            exit("Option ID out of range.")
+        end if
+        object = objects[option - 1]
+        
+        if typeof(object) == "shell" then
+            object.start_terminal
+        else if typeof(object) == "computer" then
+            homeFolder = object.File("/home")
+            
+            if not homeFolder then
+                exit("Cannot find home directory.")
+            end if
+            result = null
+        
+            for userFolder in homeFolder.get_folders
+                if userFolder.name != "guest" then
+                    for configFolder in userFolder.get_folders
+                        if configFolder.name == "Config" then
+                            result = configFolder
+                            break
+                        end if
+        
+                    end for
+        
+                end if
+        
+            end for
+        
+            file = object.File("/etc/passwd")
+        
+            if file != null and file.has_permission("r") then
+                print("Password file:\n" + file.get_content)
+            end if
+        
+            print("Mail Accounts:")
+        
+            for file in result.get_files
+                
+                if not file.has_permission("r") then
+                    continue
+                end if
+                
+                if file.name == "Mail.txt" then
+                    print(file.get_content)
+                end if
+            end for
+        
+            print("Bank Accounts:")
+        
+            for file in result.get_files
+                
+                if not file.has_permission("r") then
+                    continue
+                end if
+                
+                if file.name == "Bank.txt" then
+                    print(file.get_content)
+                end if
+            end for
+        
+        else if typeof(object) == "file" then
+            rootFolder = object
+        
+            while rootFolder.parent
+                rootFolder = rootFolder.parent
+            end while
+        
+            result = null
+        
+            for folder in rootFolder.get_folders
+                if folder.name == "home" then
+                    for userFolder in folder.get_folders
+                        if userFolder.name != "guest" then
+                            for configFolder in userFolder.get_folders
+                                if configFolder.name == "Config" then
+                                    result = configFolder
+                                    break
+                                end if
+        
+                            end for
+        
+                        end if
+        
+                    end for
+        
+                end if
+        
+            end for
+        
+            filePasswd = null
+        
+            for folder in rootFolder.get_folders
+                if folder.name == "etc" then
+                    for file in folder.get_files
+                        filePasswd = file
+                        break
+                    end for
+        
+                end if
+        
+            end for
+        
+            if filePasswd != null and filePasswd.has_permission("r") then
+                print("Passwords:\n" + filePasswd.get_content + "\n")
+            end if
+        
+            print("Mail Accounts:")
+        
+            for file in result.get_files
+                
+                if not file.has_permission("r") then
+                    continue
+                end if
+                
+                if file.name == "Mail.txt" then
+                    print(file.get_content)
+                end if
+            end for
+        
+            print("Bank Accounts:")
+        
+            for file in result.get_files
+                
+                if not file.has_permission("r") then
+                    continue
+                end if
+                
+                if file.name == "Bank.txt" then
+                    print(file.get_content)
+                end if
+            end for
+        
+        end if
+    end if
+else
+    targetIP = params[0]
 
-if params.len > 2 then
-	injectArg = params[2]
-end if
-ns = mx.net_use(targetIP, targetPort)
+    if not is_valid_ip(targetIP) then
+        targetIP = nslookup(targetIP)
+    end if
 
-if not ns then
-	exit("Cannot connect to net session.")
-end if
-lib = ns.dump_lib
+    if not is_valid_ip(targetIP) then
+        exit("IP address invalid.")
+    end if
+    targetPort = params[1].to_int
 
-if not lib then
-	exit("Cannot dump library.")
-end if
+    if typeof(targetPort) != "number" then
+        exit("Port needs to be a number.")
+    end if
 
-// Scans for remote exploits.
-print()
-exploits = ScanLib(lib, mx)
+    if targetPort < 0 or targetPort > 65535 then
+        exit("Port range is 0-65535.")
+    end if
+    injectArg = ""
 
-if not exploits then
-	exit
-end if
-// Use exploits in auto hack.
-objects = []
+    if params.len > 2 then
+        injectArg = params[2]
+    end if
+    ns = mx.net_use(targetIP, targetPort)
 
-for memory in exploits.memorys
-	for value in memory.value
-		result = lib.overflow(memory.key, value, injectArg)
-		
-		if typeof(result) != "shell" and typeof(result) != "computer" and typeof(result) != "file" then
-			continue
-		end if
-		objects.push(result)
-	end for
+    if not ns then
+        exit("Cannot connect to net session.")
+    end if
+    lib = ns.dump_lib
 
-end for
+    if not lib then
+        exit("Cannot dump library.")
+    end if
 
+    // Scans for remote exploits.
+    print()
+    exploits = ScanLib(lib, mx)
 
-if objects.len == 0 then
-	exit("No shells found.")
-end if
-option = 0
+    if not exploits then
+        exit
+    end if
+    // Use exploits in auto hack.
+    objects = []
 
-while option <= 0 or option > objects.len
-	info = "ID TYPE USER"
-	i = 1
+    for memory in exploits.memorys
+        for value in memory.value
+            result = lib.overflow(memory.key, value, injectArg)
+            
+            if typeof(result) != "shell" and typeof(result) != "computer" and typeof(result) != "file" then
+                continue
+            end if
+            objects.push(result)
+        end for
 
-	for object in objects
-		
-		if typeof(object) == "shell" then
-			info = info + "\n" + str(i) + "<color=#A50000><b> " + typeof(object) + " </b></color>" + CheckUser(object)
-		end if
-		
-		if typeof(object) != "shell" then
-			info = info + "\n" + str(i) + "<color=#6699ff><b> " + typeof(object) + " </b></color>" + CheckUser(object)
-		end if
-		i = i + 1
-	end for
-
-	print(format_columns(info) + "\n")
-
-	option = user_input("Enter ID: ").to_int
-	
-	if typeof(option) != "number" then
-		exit("Option ID out of range.")
-	end if
-end while
+    end for
 
 
-if option <= 0 or option > objects.len then
-	exit("Option ID out of range.")
-end if
-object = objects[option - 1]
+    if objects.len == 0 then
+        exit("No shells found.")
+    end if
+    option = 0
 
-if typeof(object) == "shell" then
-	object.start_terminal
-else if typeof(object) == "computer" then
-	homeFolder = object.File("/home")
-	
-	if not homeFolder then
-		exit("Cannot find home directory.")
-	end if
-	result = null
+    while option <= 0 or option > objects.len
+        info = "ID TYPE USER"
+        i = 1
 
-	for userFolder in homeFolder.get_folders
-		if userFolder.name != "guest" then
-			for configFolder in userFolder.get_folders
-				if configFolder.name == "Config" then
-					result = configFolder
-					break
-				end if
+        for object in objects
+            
+            if typeof(object) == "shell" then
+                info = info + "\n" + str(i) + "<color=#A50000><b> " + typeof(object) + " </b></color>" + CheckUser(object)
+            end if
+            
+            if typeof(object) != "shell" then
+                info = info + "\n" + str(i) + "<color=#6699ff><b> " + typeof(object) + " </b></color>" + CheckUser(object)
+            end if
+            i = i + 1
+        end for
 
-			end for
+        print(format_columns(info) + "\n")
 
-		end if
+        option = user_input("Enter ID: ").to_int
+        
+        if typeof(option) != "number" then
+            exit("Option ID out of range.")
+        end if
+    end while
 
-	end for
 
-	file = object.File("/etc/passwd")
+    if option <= 0 or option > objects.len then
+        exit("Option ID out of range.")
+    end if
+    object = objects[option - 1]
 
-	if file != null and file.has_permission("r") then
-		print("Password file:\n" + file.get_content)
-	end if
+    if typeof(object) == "shell" then
+        object.start_terminal
+    else if typeof(object) == "computer" then
+        homeFolder = object.File("/home")
+        
+        if not homeFolder then
+            exit("Cannot find home directory.")
+        end if
+        result = null
 
-	print("Mail Accounts:")
+        for userFolder in homeFolder.get_folders
+            if userFolder.name != "guest" then
+                for configFolder in userFolder.get_folders
+                    if configFolder.name == "Config" then
+                        result = configFolder
+                        break
+                    end if
 
-	for file in result.get_files
-		
-		if not file.has_permission("r") then
-			continue
-		end if
-		
-		if file.name == "Mail.txt" then
-			print(file.get_content)
-		end if
-	end for
+                end for
 
-	print("Bank Accounts:")
+            end if
 
-	for file in result.get_files
-		
-		if not file.has_permission("r") then
-			continue
-		end if
-		
-		if file.name == "Bank.txt" then
-			print(file.get_content)
-		end if
-	end for
+        end for
 
-else if typeof(object) == "file" then
-	rootFolder = object
+        file = object.File("/etc/passwd")
 
-	while rootFolder.parent
-		rootFolder = rootFolder.parent
-	end while
+        if file != null and file.has_permission("r") then
+            print("Password file:\n" + file.get_content)
+        end if
 
-	result = null
+        print("Mail Accounts:")
 
-	for folder in rootFolder.get_folders
-		if folder.name == "home" then
-			for userFolder in folder.get_folders
-				if userFolder.name != "guest" then
-					for configFolder in userFolder.get_folders
-						if configFolder.name == "Config" then
-							result = configFolder
-							break
-						end if
+        for file in result.get_files
+            
+            if not file.has_permission("r") then
+                continue
+            end if
+            
+            if file.name == "Mail.txt" then
+                print(file.get_content)
+            end if
+        end for
 
-					end for
+        print("Bank Accounts:")
 
-				end if
+        for file in result.get_files
+            
+            if not file.has_permission("r") then
+                continue
+            end if
+            
+            if file.name == "Bank.txt" then
+                print(file.get_content)
+            end if
+        end for
 
-			end for
+    else if typeof(object) == "file" then
+        rootFolder = object
 
-		end if
+        while rootFolder.parent
+            rootFolder = rootFolder.parent
+        end while
 
-	end for
+        result = null
 
-	filePasswd = null
+        for folder in rootFolder.get_folders
+            if folder.name == "home" then
+                for userFolder in folder.get_folders
+                    if userFolder.name != "guest" then
+                        for configFolder in userFolder.get_folders
+                            if configFolder.name == "Config" then
+                                result = configFolder
+                                break
+                            end if
 
-	for folder in rootFolder.get_folders
-		if folder.name == "etc" then
-			for file in folder.get_files
-				filePasswd = file
-				break
-			end for
+                        end for
 
-		end if
+                    end if
 
-	end for
+                end for
 
-	if filePasswd != null and filePasswd.has_permission("r") then
-		print("Passwords:\n" + filePasswd.get_content + "\n")
-	end if
+            end if
 
-	print("Mail Accounts:")
+        end for
 
-	for file in result.get_files
-		
-		if not file.has_permission("r") then
-			continue
-		end if
-		
-		if file.name == "Mail.txt" then
-			print(file.get_content)
-		end if
-	end for
+        filePasswd = null
 
-	print("Bank Accounts:")
+        for folder in rootFolder.get_folders
+            if folder.name == "etc" then
+                for file in folder.get_files
+                    filePasswd = file
+                    break
+                end for
 
-	for file in result.get_files
-		
-		if not file.has_permission("r") then
-			continue
-		end if
-		
-		if file.name == "Bank.txt" then
-			print(file.get_content)
-		end if
-	end for
+            end if
 
+        end for
+
+        if filePasswd != null and filePasswd.has_permission("r") then
+            print("Passwords:\n" + filePasswd.get_content + "\n")
+        end if
+
+        print("Mail Accounts:")
+
+        for file in result.get_files
+            
+            if not file.has_permission("r") then
+                continue
+            end if
+            
+            if file.name == "Mail.txt" then
+                print(file.get_content)
+            end if
+        end for
+
+        print("Bank Accounts:")
+
+        for file in result.get_files
+            
+            if not file.has_permission("r") then
+                continue
+            end if
+            
+            if file.name == "Bank.txt" then
+                print(file.get_content)
+            end if
+        end for
+
+    end if
 end if

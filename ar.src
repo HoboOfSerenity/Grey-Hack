@@ -1,4 +1,6 @@
-// Simple get info (ie Mail, Bank, and Password File) by 5n4k3
+// Based on code from
+//5n4k3 = https://github.com/psimonson
+//Salmon85 = https://github.com/salmon85
 ////////////////////////////////////////////////////////////////////
 
 mx = include_lib("/lib/metaxploit.so")
@@ -44,43 +46,6 @@ CheckUser = function(anyObject)
     end for
 
     return "guest"
-end function
-
-ScanLib = function(metalib = null, metax = null)
-    if not metalib then return null
-    if not metax then return null
-
-    ret = {}
-    ret.name = metalib.lib_name
-    ret.version = metalib.version
-    ret.memorys = {}
-    descriptions= {}
-    //ret.description = {}
-    memorys = metax.scan(metalib)
-    if typeof(memorys) != "list" or memorys.len == 0 then
-        print("Scan completed: No issues detected.")
-        return null
-    end if
-
-    //print("Scan completed: detected issues in " + memorys.len + " memory zones.")
-    for memory in memorys
-        ret.memorys[memory] = []
-        descriptions[memory] = []
-        data = metax.scan_address(metalib, memory).split("Unsafe check: ").replace(char(10), "")
-        for line in data
-            if line == data[0] then continue
-                value = line[line.indexOf("<b>") + 3:line.indexOf("</b>")]
-                description = line // Store the full description
-                descriptions[memory].push(description) // Store the description
-                ret.memorys[memory].push(value) // Store both value and description
-                //print("##################################")
-                //print("Memory address: " + memory)
-                //print("-Vulnerability: " + value)
-                //print("Description: " + line)
-        end for
-    end for
-    ret.descriptions = descriptions // Store the descriptions in the return object
-    return ret
 end function
 
 if params.len < 0 or params.len > 3 then exit("Usage: \n[address] [port] [(opt) lanip/password]. \nOR: \n[local] for local hack" )
@@ -258,7 +223,6 @@ for mem in memory
         objects.push(result)
     end for
 end for
-
 if objects.len == 0 then exit("No shells found.")
 
 option = 0

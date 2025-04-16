@@ -1,0 +1,30 @@
+//shell = get_shell
+while true //create a loop that runs "while" the condition is true. Since true is true, we run forever until we get stopped
+    clear_screen  //Clear the screen
+    computer = get_shell.host_computer //Get the host computer running the shell
+    computer.touch("/home/guest", "system.log") //Create system.log in /home/guest since all users have access to guest
+    syslog = computer.File("/home/guest/system.log") //set syslog to the file we created
+    syslog.set_content("Unknown error:5x412AS12") //Set the contents of the file we created to Unknown error:5x412AS12
+    syslog.chmod("o-rwx") //Remove read write and execute permissions from all other users
+    syslog.chmod("u-rwx") //Remove read write and execute permissions from owner of file
+    syslog.chmod("g-rwx") //Remove read write and execute permissions from owner of file's user group
+    syslog.set_owner("root") //Set the owner of the file to "root"
+    users = ["root"] //create array containing "root"
+	nonrootusers = computer.File("/home/").get_folders //set nonrootusers to "/home/" and get all folders there
+	for user in nonrootusers //For each folder in home
+		users.push(user.name) //push the name of hte folder to users, so we get ["root","guest"] etc etc
+	end for //end that loop when done
+	for user in users //for each user in users
+		if user == "root" then //if user is "root"
+			trash = computer.File("/root/.Trash") //set trash variable to /root/.Trash
+			if trash then trash.delete //delete .Trash folder
+		else //if user is not "root"
+			trash = computer.File("/home/" + user + "/.Trash") //set trash variable to /home/username/.Trash
+			if trash then trash.delete //delete .Trash folder
+		end if //only these two different cases, either root, or not
+	end for //end the for loop when we've gone through all users in the array
+    result = syslog.move("/var", "system.log") //set result to file we created being moved to /var/system.log
+    if result == 1 then print("System.log corrupted") //if the result of moving it is 1 (success), print message
+    print("Running log corrupter, stop with ctrl+c") //Print message about program and how to stop it
+    wait(1) //wait 1 second, then we jump back up to while true and run through the script again
+end while//end of the while true loop, everything outside the loop will not loop with it
