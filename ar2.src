@@ -1,7 +1,7 @@
 // Requirements:
 // json.src
-// to be saved into {home_dir}/src/includes/
-// the required includes should also be on the github
+// the required include is on salmon85's github here
+// https://github.com/salmon85/Grey_hack_scripts/blob/main/includes/json.src
 // Edit this line to match your home dir since import_code doesn't like using home_dir variable
 import_code("/bin/json.src")
 // Program version output
