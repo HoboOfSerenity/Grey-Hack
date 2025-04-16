@@ -1,7 +1,7 @@
 // Based on code from
 //5n4k3 = https://github.com/psimonson
 //Salmon85 = https://github.com/salmon85
-////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
 
 mx = include_lib("/lib/metaxploit.so")
 if not mx then mx = include_lib(parent_path(program_path) + "/metaxploit.so")
