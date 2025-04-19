@@ -478,29 +478,29 @@ end if
 SetupCache()
 wait(1)
 if params[0] == "local" then
-    liblocal = user_input("Which library to attack?\n*init\n*net\n*kernel\n*aptclient\n*libtrafficnet\n*crypto\n*metaxploit >")
-    liblocal = liblocal.replace("init", "/lib/init.so")
-    liblocal = liblocal.replace("net", "/lib/net.so")
-    liblocal = liblocal.replace("kernel", "/lib/kernel_module.so")
-    liblocal = liblocal.replace("aptclient","/lib/aptclient.so")
-    liblocal = liblocal.replace("libtrafficnet", "/lib/libtrafficnet.so")
-    liblocal = liblocal.replace("crypto", "/lib/crypto.so")
-    liblocal = liblocal.replace("metaxploit", "/lib/metaxploit.so")
-    print("Trying to fetch " + liblocal)
+    lib = user_input("Which library to attack?\n*init\n*net\n*kernel\n*aptclient\n*libtrafficnet\n*crypto\n*metaxploit >")
+    lib = lib.replace("init", "/lib/init.so")
+    lib = lib.replace("net", "/lib/net.so")
+    lib = lib.replace("kernel", "/lib/kernel_module.so")
+    lib = lib.replace("aptclient","/lib/aptclient.so")
+    lib = lib.replace("libtrafficnet", "/lib/libtrafficnet.so")
+    lib = lib.replace("crypto", "/lib/crypto.so")
+    lib = lib.replace("metaxploit", "/lib/metaxploit.so")
+    print("Trying to fetch " + lib)
 
     // check if we have the target library
 
-    file = get_shell.host_computer.File(liblocal)
+    file = get_shell.host_computer.File(lib)
 
     if file == null then
-    print((liblocal + " : " + "No such file or directory"))
+    print((lib + " : " + "No such file or directory"))
     else
         injectArg = ""
 
         if params.len > 2 then
             injectArg = params[2]
         end if
-        lib = mx.load(liblocal)
+        lib = mx.load(lib)
         if not lib then
             exit("Cannot dump library.")
         end if
