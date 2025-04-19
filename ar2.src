@@ -11,7 +11,7 @@ version_output = "
 // Modifications by Salmon85        //
 // Modifications by HoboOfSerenity  //
 //////////////////////////////////////
-// Version: <color=#AF6D0B>1.1</color>                     //
+// Version: <color=#AF6D0B>1.1H</color>                    //
 //                                  //
 // Changes                          //
 // Added option for local lib hack  //
@@ -29,13 +29,13 @@ usage_output = "
     ARF!             <color=#5F270C>)<color=#AF6D0B>O <color=#D4B98E>_ <color=#AF6D0B>O<color=#5F270C>(
   Let me help       <color=#5F270C>{  <color=#8B4E2F>(_)  <color=#5F270C>}
 and seek             <color=#5F270C>`- <color=#8B4E2F>^ <color=#5F270C>-'</color> 
--------------------------------------------------------------------------------- 
+-------------------------------------------------------------
 <color=#AF6D0B>nmap/scanrouter functionality</color> : "+ program_path.split("/")[-1] + " [ip address] <- This will do an nmap and if target is a <color=#0B8EAF>router</color>, list kernel_router.so version and firewall rules, if any
 --------------------------------------------------------------------------------
 <color=#AF6D0B>Local hack</color> : "+ program_path.split("/")[-1] + " [local] [(opt) lanip/password] <- This then asks you what library you want to target. <color=#B60606>!!!NOTE!!!</color> not all listed will be present on target, the list contains all libs that can have locally run exploits. 
---------------------------------------------------------------------------------           
+-------------------------------------------------------------          
 <color=#AF6D0B>Remote hack</color> : " + program_path.split("/")[-1] + " [ip address] [port] [(opt) lanip/password] <-This will try and exploit the library found at target port with optional local lan ip or password input for bounce/password changes
--------------------------------------------------------------------------------
+-------------------------------------------------------------
 <color=#AF6D0B>[--setup-server]</color> for configuring the cache server (must be run on the server and requires root)
 <color=#AF6D0B>[--setup-server-remote]</color> for configuring the remote cache server (run locally in current shell, cache server needs ssh setting up and root access)"
 // ************************************************************
